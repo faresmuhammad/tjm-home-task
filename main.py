@@ -10,7 +10,7 @@ import src.window_validator as win
 from config import ANNOTATION_DIR, PROJECT_DIR
 from src.builder import build_client, build_clients, build_strategy
 from src.data_source import fetch_posts
-from src.grounder.roles.grounder import Grounder
+from src.grounder.roles.grounder import Grounder, TargetNotVisibleError
 
 load_dotenv()
 
@@ -19,22 +19,29 @@ def process_post(
     post: dict,
     output_dir: Path,
 ):
-    clients = build_clients([("openrouter", None), ("openai", None)])
+    clients = build_clients([("openrouter", None)])
     grounder = build_strategy("direct", Grounder(clients))
     note.ensure_clean_launch()
     sleep(1)
+    sc.navigateToDesktop()
+    sleep(0.6)
     screenshot = sc.captureScreenshot()
     target_description = "Notepad text editor application icon, a small image shows lines or pages used to launch Microsoft Notepad"
-    bbox = grounder.ground(screenshot, target_description)
-    sc.save_annotated_screenshot(
-        screenshot,
-        bbox,
-        ANNOTATION_DIR / f"post_{post['id']}_annotated.png",
-    )
-    x, y = bbox.center
+    try:
+        bbox = grounder.ground(screenshot, target_description)
+    except TargetNotVisibleError:
+        print("[main] Notepad icon not on desktop — launching directly")
+        note.launch_directly()
+    else:
+        sc.save_annotated_screenshot(
+            screenshot,
+            bbox,
+            ANNOTATION_DIR / f"post_{post['id']}_annotated.png",
+        )
+        x, y = bbox.center
 
-    sc.moveTo(x, y, 0.3)
-    sc.doubleClick()
+        sc.moveTo(x, y, 0.3)
+        sc.doubleClick()
     if not win.isAppFoused(("Untitled", "Notepad")):
         print("Error Notepad is not opened")
 

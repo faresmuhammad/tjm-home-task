@@ -34,6 +34,10 @@ def _denorm_bbox(
         y2=px(y2, scale_y, h),
     )
     
+class TargetNotVisibleError(Exception):
+    """Raised when all grounding providers agree the target is not in the image."""
+
+
 class Grounder:
     def __init__(self, clients: ModelClient | list[ModelClient]) -> None:
         self._clients: list[ModelClient] = (
@@ -44,6 +48,8 @@ class Grounder:
         prompt = direct_ground_prompt(target_description)
         total = len(self._clients)
         last_err: Exception | None = None
+        null_votes = 0
+        errored = 0
 
         for i, client in enumerate(self._clients):
             try:
@@ -52,18 +58,31 @@ class Grounder:
                 bbox_raw = parsed.get("bbox")
 
                 if bbox_raw is None:
-                    raise ValueError("Target not visible")
+                    null_votes += 1
+                    last_err = ValueError("Target not visible")
+                    print(
+                        f"[Grounder] client {i+1}/{total} "
+                        f"({type(client).__name__}) reported target not visible"
+                    )
+                    continue
 
                 try:
                     return _denorm_bbox(bbox_raw, image.size)
                 except Exception:
                     raise TypeError("Couldn't parse bbox")
             except Exception as e:
+                errored += 1
                 print(
                     f"[Grounder] client {i+1}/{total} "
                     f"({type(client).__name__}) failed: {e}"
                 )
                 last_err = e
+
+        if null_votes > 0 and null_votes + errored == total:
+            raise TargetNotVisibleError(
+                f"{null_votes}/{total} providers reported target not visible "
+                f"({errored} errored)"
+            )
 
         raise RuntimeError(
             f"All {total} grounding providers exhausted"

@@ -38,6 +38,10 @@ def _wipe_tab_state() -> None:
             print(f"[notepad_driver] could not delete {entry.name}: {e}")
 
 
+def launch_directly() -> None:
+    subprocess.Popen(["notepad.exe"])
+
+
 def ensure_clean_launch() -> None:
     _force_kill_notepad()
     win.isAppGone(("Notepad",), timeout_seconds=2.0)

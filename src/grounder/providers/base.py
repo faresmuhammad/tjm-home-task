@@ -42,7 +42,7 @@ class ModelClient(ABC):
             except Exception as e:
                 last_err = e
                 print(f"[Try] try {t+1}/{tries} failed: {e}")
-                sleep(1)
+                # sleep(1)
 
         raise RuntimeError(
             f"{type(self).__name__} exhausted {tries} retries"

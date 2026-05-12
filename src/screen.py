@@ -30,7 +30,7 @@ def save_annotated_screenshot(
 
 
 def navigateToDesktop():
-    pyautogui.hotkey("win", "d")
+    pyautogui.hotkey("win", "m")
 
 
 def moveTo(x, y, interval=0.0):
