@@ -2,49 +2,28 @@ from PIL.Image import Image
 
 from src.grounder.prompts import direct_ground_prompt
 from src.grounder.providers.base import ModelClient, ModelRequest
+from src.grounder.roles import (
+    GroundResult,
+    Role,
+    TargetNotVisibleError,
+    _denorm_bbox,
+)
 from src.grounder.types import BBox
 
-
-def _denorm_bbox(
-    normalized: list[float] | list[int],
-    image_size: tuple[int, int],
-    norm_max: float = 1000.0,
-) -> BBox:
-    """Convert [x1, y1, x2, y2] in 0..norm_max to pixel coordinates.
-
-    Models trained on grounding (Gemini, Qwen-VL) typically output in
-    0..1000 normalized space. This converter handles both the 0..1 and
-    0..1000 conventions — auto-detected by checking if all values ≤ 1.
-    """
-    if len(normalized) != 4:
-        raise ValueError(f"Expected 4 coordinates, got {len(normalized)}: {normalized}")
-    w, h = image_size
-    x1, y1, x2, y2 = normalized
-    # Auto-detect 0..1 vs 0..1000 convention
-    if max(abs(v) for v in normalized) <= 1.0:
-        scale_x, scale_y = w, h
-    else:
-        scale_x, scale_y = w / norm_max, h / norm_max
-    # Clip to valid range and round to ints
-    px = lambda v, scale, dim: max(0, min(dim - 1, int(round(v * scale))))
-    return BBox(
-        x1=px(x1, scale_x, w),
-        y1=px(y1, scale_y, h),
-        x2=px(x2, scale_x, w),
-        y2=px(y2, scale_y, h),
-    )
-    
-class TargetNotVisibleError(Exception):
-    """Raised when all grounding providers agree the target is not in the image."""
+VERIFY_CROP_SIZE = 200
+MAX_DEPTH = 2
 
 
-class Grounder:
+class Grounder(Role):
     def __init__(self, clients: ModelClient | list[ModelClient]) -> None:
-        self._clients: list[ModelClient] = (
-            clients if isinstance(clients, list) else [clients]
-        )
+        super().__init__(clients)
 
-    def ground(self, image: Image, target_description: str) -> BBox:
+    def ground(
+        self,
+        image: Image,
+        target_description: str,
+        _depth: int = 0,
+    ) -> GroundResult:
         prompt = direct_ground_prompt(target_description)
         total = len(self._clients)
         last_err: Exception | None = None
@@ -55,25 +34,59 @@ class Grounder:
             try:
                 response = client.execute(ModelRequest(prompt, image))
                 parsed = response.parsed_json or {}
-                bbox_raw = parsed.get("bbox")
+                raw_boxes = parsed.get("boxes", [])
 
-                if bbox_raw is None:
+                candidates: list[BBox] = []
+                for entry in raw_boxes:
+                    bbox_raw = entry.get("bbox") if isinstance(entry, dict) else None
+                    if not bbox_raw:
+                        continue
+                    try:
+                        candidates.append(_denorm_bbox(bbox_raw, image.size))
+                    except (ValueError, TypeError):
+                        continue
+
+                if not candidates:
                     null_votes += 1
                     last_err = ValueError("Target not visible")
                     print(
-                        f"[Grounder] client {i+1}/{total} "
+                        f"[Grounder] client {i + 1}/{total} "
                         f"({type(client).__name__}) reported target not visible"
                     )
                     continue
 
-                try:
-                    return _denorm_bbox(bbox_raw, image.size)
-                except Exception:
-                    raise TypeError("Couldn't parse bbox")
+                if len(candidates) == 1:
+                    return GroundResult(bbox=candidates[0])
+
+                print(
+                    f"[Grounder] client {i + 1}/{total} "
+                    f"({type(client).__name__}) returned {len(candidates)} candidates; "
+                    f"verifying by label (depth={_depth})"
+                )
+
+                if _depth >= MAX_DEPTH:
+                    null_votes += 1
+                    last_err = TargetNotVisibleError(
+                        "max verification depth reached without unique target"
+                    )
+                    continue
+
+                verified = self._verify_candidates(
+                    image, candidates, target_description, _depth
+                )
+                if verified is not None:
+                    return GroundResult(bbox=verified)
+
+                null_votes += 1
+                last_err = TargetNotVisibleError(
+                    "no candidate passed label verification"
+                )
+            except TargetNotVisibleError:
+                raise
             except Exception as e:
                 errored += 1
                 print(
-                    f"[Grounder] client {i+1}/{total} "
+                    f"[Grounder] client {i + 1}/{total} "
                     f"({type(client).__name__}) failed: {e}"
                 )
                 last_err = e
@@ -84,7 +97,27 @@ class Grounder:
                 f"({errored} errored)"
             )
 
-        raise RuntimeError(
-            f"All {total} grounding providers exhausted"
-        ) from last_err
-        
+        raise RuntimeError(f"All {total} grounding providers exhausted") from last_err
+
+    def _verify_candidates(
+        self,
+        image: Image,
+        candidates: list[BBox],
+        target_description: str,
+        depth: int,
+    ) -> BBox | None:
+        W, H = image.size
+        half = VERIFY_CROP_SIZE // 2
+        for candidate in candidates:
+            cx, cy = candidate.center
+            x0 = max(0, min(cx - half, W - VERIFY_CROP_SIZE))
+            y0 = max(0, min(cy - half, H - VERIFY_CROP_SIZE))
+            x1 = min(W, x0 + VERIFY_CROP_SIZE)
+            y1 = min(H, y0 + VERIFY_CROP_SIZE)
+            crop = image.crop((x0, y0, x1, y1))
+            try:
+                self.ground(crop, target_description, _depth=depth + 1)
+            except TargetNotVisibleError:
+                continue
+            return candidate
+        return None

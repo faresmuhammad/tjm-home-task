@@ -1,8 +1,9 @@
 from PIL.Image import Image
 
+from src.grounder.roles import GroundResult
 from src.grounder.roles.grounder import Grounder
 from src.grounder.strategies.base import GroundingStrategy
-from src.grounder.types import BBox, Viewport
+from src.grounder.types import Viewport
 
 
 class RegroundStrategy(GroundingStrategy):
@@ -10,11 +11,11 @@ class RegroundStrategy(GroundingStrategy):
         self._grounder = grounder
         self._crop_size = crop_size
 
-    def ground(self, image: Image, target_description: str) -> BBox:
+    def ground(self, image: Image, target_description: str) -> GroundResult:
         # first direct ground
         screen_w, screen_h = image.size
         first_ground = self._grounder.ground(image, target_description)
-        cx, cy = first_ground.center
+        cx, cy = first_ground.bbox.center
 
         half_crop_size = self._crop_size // 2
         x0 = min(0, max(cx - half_crop_size, screen_w - self._crop_size))
@@ -27,4 +28,4 @@ class RegroundStrategy(GroundingStrategy):
 
         second_ground = self._grounder.ground(crop, target_description)
 
-        return crop_viewport.to_screen(second_ground)
+        return GroundResult(bbox=crop_viewport.to_screen(second_ground.bbox))

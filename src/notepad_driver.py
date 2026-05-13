@@ -4,10 +4,10 @@ from pathlib import Path
 from time import sleep
 
 import pyautogui
-import pyperclip
 import pygetwindow as gw
-import src.window_validator as win
+import pyperclip
 
+import src.window_validator as win
 
 NOTEPAD_TAB_STATE = (
     Path(os.environ.get("LOCALAPPDATA", ""))
@@ -44,7 +44,7 @@ def launch_directly() -> None:
 
 def ensure_clean_launch() -> None:
     _force_kill_notepad()
-    win.isAppGone(("Notepad",), timeout_seconds=2.0)
+    win.isProcessGone("Notepad.exe", timeout_seconds=2.0)
     _wipe_tab_state()
 
 
@@ -71,7 +71,6 @@ def save_as(filename: str, dir: Path):
     sleep(0.2)
     pyautogui.press("enter")
 
-
     if win.isAppFoused(("Confirm Save As",), timeout_seconds=1.5):
         pyautogui.press("tab")
         pyautogui.press("enter")
@@ -89,9 +88,9 @@ def close(window_title: str, timeout: float = 3.0):
         except Exception as e:
             print(f"[notepad_driver] WM_CLOSE failed for '{w.title}': {e}")
 
-    if win.isAppGone(("Notepad",), timeout_seconds=timeout):
+    if win.isProcessGone("Notepad.exe", timeout_seconds=timeout):
         return
 
     _force_kill_notepad()
-    if not win.isAppGone(("Notepad",), timeout_seconds=timeout):
+    if not win.isProcessGone("Notepad.exe", timeout_seconds=timeout):
         raise RuntimeError("Notepad failed to close even after taskkill")

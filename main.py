@@ -23,14 +23,15 @@ def process_post(
     grounder = build_strategy("direct", Grounder(clients))
     note.ensure_clean_launch()
     sleep(1)
-    # sc.navigateToDesktop()
-    # sleep(0.6)
+    sc.navigateToDesktop()
+    sleep(0.6)
     screenshot = sc.captureScreenshot()
     work_area = sc.get_work_area_viewport()
     cropped = sc.crop_to_viewport(screenshot, work_area)
     target_description = "Notepad text editor application icon, a small image shows lines and a note used to launch Microsoft Notepad"
     try:
-        local_bbox = grounder.ground(cropped, target_description)
+        result = grounder.ground(cropped, target_description)
+        local_bbox = result.bbox
     except TargetNotVisibleError:
         print("[main] Notepad icon not on desktop — launching directly")
         note.launch_directly()
