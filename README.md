@@ -11,6 +11,15 @@ A desktop automation pipeline that fetches posts from a REST API and writes each
 - [Center 2](screenshots/annotated_center_2.png)
 
 ---
+## Cases Covered
+- Icon is not visible on desktop -> lanuch `notepad.exe` directly
+- Window lanuched check by window title with timeout
+- Multiple icons detected by regrounding on the icon boxes to check the right label
+- Icon partially obscured, by minimzing all active windows before capture a screenshot
+- Background affect the detection by strict target description as no api cost (initial solution)
+- Gracful degradation for API unavailability by set a list of clients that allow the grounder to switch to the next model in the list after 3 tries failure
+- Handle existing file in the target directory by overwrite it
+---
 
 ## Project Structure
 
@@ -81,10 +90,10 @@ process_post(post)
     ├── captureScreenshot()          # PIL Image of the full desktop
     │
     ├── build_strategy('reground')   # Selects grounding algorithm
-    │       └── Grounder(client)     # Wraps the VLM provider
+    │       └── Grounder(clients)    # Wraps the VLM providers list, to run through in case of unavailability
     │
     ├── strategy.ground(screenshot, target_description)
-    │       └── returns BBox (pixel coords on screen)
+    │       └── returns GroundResult includes BBox (pixel coords on screen)
     │
     ├── save_annotated_screenshot()  # Saves debug PNG to screenshots/
     │
@@ -97,9 +106,22 @@ process_post(post)
 
 ---
 
-## Grounding Subsystem
+## GUI Grounding System
 
-The grounding subsystem locates a UI element on a screenshot by asking a vision-language model to return a bounding box, then converts that to screen pixel coordinates.
+The grounding system locates a UI element on a screenshot by asking a vision-language model to return a bounding box, then converts that to screen pixel coordinates.
+
+Multiple Approaches can be implemented, explained in [this paper](https://arxiv.org/pdf/2504.07981), to boost the accuracy without tuning the model and utilize the gui-knowledge of a model even it's not good at grounding.
+
+At the moment, direct and reground methods are implemented in this project.
+
+**Direct:** Single model call on the full screenshot.
+
+**Reground:** Two-pass approach for higher precision on small targets:
+
+  1. **First Pass** — run `Grounder` on the full screenshot to get an approximate center.
+  2. **Crop** — extract a `crop_size × crop_size` (default 1024 px) window centred on that point.
+  3. **Fine pass** — run `Grounder` again on the crop (larger apparent target → better bbox).
+  4. **Translate** — use `Viewport.to_screen()` to convert the local crop bbox back to full-screen coordinates.
 
 ### Layer Architecture
 
@@ -123,58 +145,17 @@ VLM API (OpenRouter)
 
 ---
 
-### Grounding Strategies
-
-#### Direct (`strategies/direct.py`)
-
-Single model call on the full screenshot. Fast, less precise for small icons.
-
-```
-screenshot ──► Grounder.ground() ──► BBox
-```
-
-#### Reground (`strategies/reground.py`)
-
-Two-pass approach for higher precision on small targets:
-
-1. **First Pass** — run `Grounder` on the full screenshot to get an approximate center.
-2. **Crop** — extract a `crop_size × crop_size` (default 1024 px) window centred on that point.
-3. **Fine pass** — run `Grounder` again on the crop (larger apparent target → better bbox).
-4. **Translate** — use `Viewport.to_screen()` to convert the local crop bbox back to full-screen coordinates.
-
----
-
 ### Provider: OpenRouter (`providers/openrouter.py`)
 
 
 - Image encoded as base64 PNG and sent as `image_url` content part.
-- Model response expected as a JSON object: `{"bbox": [x1, y1, x2, y2]}` in 0–1000 normalised space.
+- Model response expected as a JSON object: `[{"bbox": [x1, y1, x2, y2]},...]` in 0–1000 normalised space.
 - `ModelClient.execute()` retries up to 3 times on failure.
 
-Default model: `qwen/qwen3-vl-32b-instruct`
+
+**Model Used:** `qwen/qwen3-vl-32b-instruct`
 
 ---
-
-### Prompt (`prompts.py`)
-
-The model is instructed to return only a JSON object:
-
-```
-{"bbox": [x1, y1, x2, y2]}   — target found
-{"bbox": null}                 — target not visible
-```
-
----
-
-## Debug Annotations
-
-After each grounding call, `save_annotated_screenshot()` writes a PNG to `screenshots/post_{id}_annotated.png` showing:
-
-- **Red rectangle** — the predicted bounding box
-- **Red circle** — the computed click point (bbox center)
-
----
-
 
 ## Setup
 
@@ -188,17 +169,3 @@ cp .env.example .env
 # Run
 uv run main.py
 ```
-
----
-
-## Dependencies
-
-| Package | Purpose |
-|---|---|
-| `openai` | Chat Completions client (used against OpenRouter) |
-| `pillow` | Screenshot annotation (ImageDraw) |
-| `pyautogui` | Screenshot capture, mouse/keyboard automation |
-| `pygetwindow` | Window title polling |
-| `pyperclip` | Clipboard-based text input into Notepad |
-| `python-dotenv` | `.env` loading |
-| `requests` | Posts API fetch |
