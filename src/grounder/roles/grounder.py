@@ -7,6 +7,7 @@ from src.grounder.roles import (
     Role,
     TargetNotVisibleError,
     _denorm_bbox,
+    logger,
 )
 from src.grounder.types import BBox
 
@@ -49,20 +50,22 @@ class Grounder(Role):
                 if not candidates:
                     null_votes += 1
                     last_err = ValueError("Target not visible")
-                    print(
-                        f"[Grounder] client {i + 1}/{total} "
+                    logger.error(
+                        f"client {i + 1}/{total} "
                         f"({type(client).__name__}) reported target not visible"
                     )
                     continue
 
                 if len(candidates) == 1:
+                    logger.info(f"Single Candidate Detected: {candidates[0]}")
                     return GroundResult(bbox=candidates[0])
 
-                print(
-                    f"[Grounder] client {i + 1}/{total} "
+                logger.info(
+                    f"client {i + 1}/{total} "
                     f"({type(client).__name__}) returned {len(candidates)} candidates; "
                     f"verifying by label (depth={_depth})"
                 )
+                logger.info(f"candidates are: {candidates}")
 
                 if _depth >= MAX_DEPTH:
                     null_votes += 1
@@ -75,18 +78,20 @@ class Grounder(Role):
                     image, candidates, target_description, _depth
                 )
                 if verified is not None:
+                    logger.info(f"verified bbox: {verified}")
                     return GroundResult(bbox=verified)
 
                 null_votes += 1
                 last_err = TargetNotVisibleError(
                     "no candidate passed label verification"
                 )
-            except TargetNotVisibleError:
+            except TargetNotVisibleError as e:
+                logger.error(f"Detection Failed: {e}")
                 raise
             except Exception as e:
                 errored += 1
-                print(
-                    f"[Grounder] client {i + 1}/{total} "
+                logger.error(
+                    f"client {i + 1}/{total} "
                     f"({type(client).__name__}) failed: {e}"
                 )
                 last_err = e
@@ -117,7 +122,8 @@ class Grounder(Role):
             crop = image.crop((x0, y0, x1, y1))
             try:
                 self.ground(crop, target_description, _depth=depth + 1)
-            except TargetNotVisibleError:
+            except TargetNotVisibleError as e:
+                logger.error(f"Candidate Verifier Failed: {e}")
                 continue
             return candidate
         return None

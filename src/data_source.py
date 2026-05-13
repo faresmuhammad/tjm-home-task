@@ -1,6 +1,9 @@
 import requests
 import json
 from config import POSTS_API_URL, POSTS_CACHE_PATH
+import logging
+
+logger = logging.getLogger(__name__)
 
 def fetch_posts(limit: int = 10) -> list[dict]:
     try:
@@ -8,6 +11,6 @@ def fetch_posts(limit: int = 10) -> list[dict]:
         r.raise_for_status()
         return r.json()[:limit]
     except Exception as e:
-        print(f"[api_client] API unavailable ({e}), loading from cache.")
+        logger.error(f"Posts API is not available, loading from cache, {e}")
         with open(POSTS_CACHE_PATH) as f:
             return json.load(f)[:limit]

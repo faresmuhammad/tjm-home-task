@@ -1,9 +1,12 @@
 
 from abc import ABC
 from dataclasses import dataclass
+import logging
 
 from src.grounder.providers.base import ModelClient
 from src.grounder.types import BBox
+
+logger = logging.getLogger(__name__)
 
 def _denorm_bbox(
     normalized: list[float] | list[int],

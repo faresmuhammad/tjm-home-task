@@ -4,6 +4,8 @@ from io import BytesIO
 
 from PIL.Image import Image
 
+from src.grounder.providers import logger
+
 
 def encode_image_b64(image: Image, format: str = "PNG") -> str:
     buffer = BytesIO()
@@ -20,4 +22,5 @@ def extract_json(text: str) -> dict:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
+        logger.error(f"Invalid Json: {text}")
         raise Exception("Invalid Json Response")

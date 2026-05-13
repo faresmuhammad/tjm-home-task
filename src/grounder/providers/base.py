@@ -5,6 +5,8 @@ from typing import Optional
 
 from PIL.Image import Image
 
+from src.grounder.providers import logger
+
 
 @dataclass
 class ModelRequest:
@@ -32,17 +34,18 @@ class ModelClient(ABC):
         self.instantiate_client()
 
         if request.image is None:
-            raise Exception("Image is empty")
+            logger.error("Image is empty")
+            raise Exception("Image is required")
 
         last_err: Optional[Exception] = None
         for t in range(tries):
-            print(f"[Try] -> {t+1}")
+            logger.info(f"{type(self).__name__} Try: {t+1}/{tries}")
             try:
                 return self.send_api(request)
             except Exception as e:
                 last_err = e
-                print(f"[Try] try {t+1}/{tries} failed: {e}")
-                # sleep(1)
+                logger.error(f"{type(self).__name__} Try {t+1}/{tries} failed: {e}")
+                sleep(1)
 
         raise RuntimeError(
             f"{type(self).__name__} exhausted {tries} retries"

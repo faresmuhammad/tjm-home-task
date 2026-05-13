@@ -1,5 +1,6 @@
 import json
 
+from src.grounder.providers import logger
 from src.grounder.providers._common import encode_image_b64, extract_json
 from src.grounder.providers.base import ModelClient, ModelRequest, ModelResponse
 
@@ -21,9 +22,11 @@ class OpenRouterClient(ModelClient):
         try:
             from openai import OpenAI
         except ImportError:
+            logger.error("OpenAI SDK is not installed")
             raise Exception("OpenAI sdk is not installed")
 
         self._client = OpenAI(base_url=self.BASE_URL, api_key=self._api_key)
+        logger.info(f"{type(self).__name__} is instantiated with model {self._model}")
         
 
         
