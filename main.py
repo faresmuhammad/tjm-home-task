@@ -1,7 +1,10 @@
+import logging
+
+
 from pathlib import Path
 from time import sleep
 from dotenv import load_dotenv
-import logging
+from src.log import logger
 import src.notepad_driver as note
 import src.screen as sc
 import src.window_validator as win
@@ -10,9 +13,12 @@ from src.builder import build_clients, build_strategy
 from src.data_source import fetch_posts
 from src.grounder.roles.grounder import Grounder, TargetNotVisibleError
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(name)s %(levelname)s %(message)s",
+)
 load_dotenv()
 
-logger = logging.getLogger(__name__)
 
 def process_post(
     post: dict,

@@ -1,6 +1,6 @@
 import json
 
-from src.grounder.providers import logger
+from src.log import logger
 from src.grounder.providers._common import encode_image_b64, extract_json
 from src.grounder.providers.base import ModelClient, ModelRequest, ModelResponse
 

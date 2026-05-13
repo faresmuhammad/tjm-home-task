@@ -7,9 +7,9 @@ from src.grounder.roles import (
     Role,
     TargetNotVisibleError,
     _denorm_bbox,
-    logger,
 )
 from src.grounder.types import BBox
+from src.log import logger
 
 VERIFY_CROP_SIZE = 200
 MAX_DEPTH = 2
@@ -36,6 +36,7 @@ class Grounder(Role):
                 response = client.execute(ModelRequest(prompt, image))
                 parsed = response.parsed_json or {}
                 raw_boxes = parsed.get("boxes", [])
+                logger.info(f"Model Returned raw boxes: {raw_boxes}")
 
                 candidates: list[BBox] = []
                 for entry in raw_boxes:

@@ -1,9 +1,8 @@
 import requests
 import json
 from config import POSTS_API_URL, POSTS_CACHE_PATH
-import logging
+from src.log import logger
 
-logger = logging.getLogger(__name__)
 
 def fetch_posts(limit: int = 10) -> list[dict]:
     try:

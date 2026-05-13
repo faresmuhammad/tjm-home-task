@@ -4,7 +4,7 @@ from io import BytesIO
 
 from PIL.Image import Image
 
-from src.grounder.providers import logger
+from src.log import logger
 
 
 def encode_image_b64(image: Image, format: str = "PNG") -> str:

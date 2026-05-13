@@ -5,7 +5,7 @@ from typing import Optional
 
 from PIL.Image import Image
 
-from src.grounder.providers import logger
+from src.log import logger
 
 
 @dataclass
