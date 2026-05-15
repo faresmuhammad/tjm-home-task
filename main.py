@@ -34,8 +34,8 @@ def process_post(
     screenshot = sc.captureScreenshot()
     work_area = sc.get_work_area_viewport()
     cropped = sc.crop_to_viewport(screenshot, work_area)
-    # target_description = "Notepad text editor application icon, a small image shows lines and a note used to launch Microsoft Notepad"
-    target_description = "Notepad text editor application icon" # general description that may include notepad++
+    target_description = "Notepad text editor application icon, a small image shows lines and a note used to launch Microsoft Notepad"
+    # target_description = "Notepad text editor application icon" # general description that may include notepad++
     try:
         result = grounder.ground(cropped, target_description)
         local_bbox = result.bbox
@@ -51,11 +51,14 @@ def process_post(
             / f"post_{post['id']}_annotated_{random.randint(1, 10000)}.png",
         )
         x, y = bbox.center
-
-        sc.moveTo(x, y, 0.3)
+        # To ensure the action will be taken on the captured screenshot
+        sc.navigateToDesktop()
+        sleep(0.6)
+        sc.moveTo(x, y, 0.1)
         sc.doubleClick()
     if not win.isAppFoused(("Untitled", "Notepad")):
         logger.error("Notepad is not opened")
+        raise Exception("Notepad is not opened")
 
     sleep(0.5)
     note.type_post_content(post["title"], post["body"])
@@ -65,10 +68,19 @@ def process_post(
     note.close(filename)
 
 
+def process_post_reselient(post:dict, output_dir: Path, tries: int = 3):
+    for t in range(tries):
+        try:
+            logger.info(f"Post {post['id']}: {t+1}/{tries} processing")
+            process_post(post,output_dir)
+        except Exception as e:
+            logger.error(f"Post {post['id']}: {t+1}/{tries} failed with exception: {e}")
+        sleep(1)
+        
 def main():
     posts = fetch_posts(10)
     for post in posts:
-        process_post(post, PROJECT_DIR)
+        process_post_reselient(post, PROJECT_DIR)
         sleep(5)
 
 
