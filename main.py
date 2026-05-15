@@ -73,6 +73,7 @@ def process_post_reselient(post:dict, output_dir: Path, tries: int = 3):
         try:
             logger.info(f"Post {post['id']}: {t+1}/{tries} processing")
             process_post(post,output_dir)
+            return
         except Exception as e:
             logger.error(f"Post {post['id']}: {t+1}/{tries} failed with exception: {e}")
         sleep(1)
