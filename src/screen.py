@@ -15,7 +15,7 @@ except (AttributeError, OSError):
 
 
 def captureScreenshot():
-    return pyautogui.screenshot("screen.png")
+    return pyautogui.screenshot()
 
 
 def get_work_area_viewport() -> Viewport:

@@ -10,4 +10,5 @@ wheels/
 .venv
 
 .env
-screenshots/post_*_annotated.png
+screenshots/post_*_annotated*.png
+screen.png
