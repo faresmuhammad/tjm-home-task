@@ -50,3 +50,18 @@ Coordinates are normalized 0-1000. If the target clearly does not exist in this 
 
 def plan_regions_prompt(target_description: str) -> str:
     return PLAN_REGIONS_PROMPT.format(target_description=target_description)
+
+VERIFY_PROMPT = """You are a GUI verification assistant. The provided image is a cropped region from a larger screenshot. Determine whether the target element is visible in this crop.
+
+TARGET: {target_description}
+
+Respond with JSON only:
+{{"verdict": "<is_target | not_found>"}}
+
+Verdicts:
+  - "is_target": the target is clearly visible in this crop
+  - "not_found": the target is not in this crop"""
+
+
+def verify_prompt(target_description: str) -> str:
+    return VERIFY_PROMPT.format(target_description=target_description)

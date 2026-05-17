@@ -5,6 +5,8 @@ from src.grounder.providers.base import ModelClient, ModelRequest
 from src.grounder.roles import Role, CandidateRegion, PlannerOutput, _denorm_bbox
 from PIL.Image import Image
 
+from src.log import logger
+
 class Planner(Role):
     def __init__(self,clients: ModelClient | list[ModelClient])
         super().__init__(clients)
@@ -28,7 +30,7 @@ class Planner(Role):
                 try:
                     bbox = _denorm_bbox(bbox_raw, image.size)
                 except (ValueError, TypeError):
-                    print("Planner returned invalid bbox: %s", bbox_raw)
+                    logger.warning("Planner returned invalid bbox: %s", bbox_raw)
                     continue
                 regions.append(
                     CandidateRegion(

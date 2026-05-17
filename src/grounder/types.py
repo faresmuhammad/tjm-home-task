@@ -46,3 +46,7 @@ class Viewport:
 
     def to_screen(self, local_box: BBox) -> BBox:
         return local_box.translate(self.x, self.y)
+
+    @classmethod
+    def full(cls, width: int, height: int) -> Viewport:
+        return cls(0, 0, width, height)
