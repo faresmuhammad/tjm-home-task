@@ -1,4 +1,4 @@
-# TJM Home Task
+# Grounding Implementation
 
 A desktop automation pipeline that fetches posts from a REST API and writes each one into Notepad using GUI automation — locating the Notepad icon on the desktop via a vision-language model (VLM) grounding system instead of hardcoded coordinates.
 
