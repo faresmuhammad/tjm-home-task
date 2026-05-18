@@ -64,9 +64,9 @@ class ScreenSeekeR(GroundingStrategy):
 
 # def search(region_crop_image,viewport,context,depth):
     # if region_crop_image.size <= small_size_threshold:
-        # grounding-result = grounder.ground(small_size_threshold,target)
         # verification = verifier.verify(grounding-result)
         # if verification.msg == 'found':
+            # grounding-result = grounder.ground(region_crop_image,target)
             # result = toScreen(grounding-result)
             # return result
         # else:
